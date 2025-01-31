@@ -1,0 +1,152 @@
+#include <ESP32Servo.h>
+
+const int trigPin = 33;
+const int echoPin = 32;
+const int motor1Pin1 = 2;
+const int motor1Pin2 = 4;
+const int motor2Pin1 = 5;
+const int motor2Pin2 = 18;
+
+long duration;
+int distance;
+
+Servo myServo;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(motor1Pin1, OUTPUT);
+  pinMode(motor1Pin2, OUTPUT);
+  pinMode(motor2Pin1, OUTPUT);
+  pinMode(motor2Pin2, OUTPUT);
+
+  myServo.attach(25);
+  myServo.write(90);  // Initialize servo to center position
+
+  stopMotors();
+}
+
+void loop() {
+  int centerDistance;
+
+  // Check the distance in front of the robot
+  myServo.write(90);
+  delay(500);
+  centerDistance = getDistance();
+  Serial.print("Center Distance: ");
+  Serial.println(centerDistance);
+
+  if (centerDistance > 20) {
+    // No object in front, scan for objects
+    scanForObject();
+  } else {
+    // Object detected in front, move forward
+    moveForward();
+  }
+
+  delay(100);  // Small delay to avoid rapid direction changes
+}
+
+void scanForObject() {
+  int leftDistance, leftCenterDistance, rightCenterDistance, rightDistance;
+
+  // Scan to the far left
+  myServo.write(0);
+  delay(500);
+  leftDistance = getDistance();
+  Serial.print("Far Left Distance: ");
+  Serial.println(leftDistance);
+
+  // Scan to the left-center
+  myServo.write(45);
+  delay(500);
+  leftCenterDistance = getDistance();
+  Serial.print("Left-Center Distance: ");
+  Serial.println(leftCenterDistance);
+
+  // Scan to the right-center
+  myServo.write(135);
+  delay(500);
+  rightCenterDistance = getDistance();
+  Serial.print("Right-Center Distance: ");
+  Serial.println(rightCenterDistance);
+
+  // Scan to the far right
+  myServo.write(180);
+  delay(500);
+  rightDistance = getDistance();
+  Serial.print("Far Right Distance: ");
+  Serial.println(rightDistance);
+
+  // Determine the direction to move towards the object
+  if (leftDistance < leftCenterDistance && leftDistance < rightCenterDistance && leftDistance < rightDistance && leftDistance < 100) {
+    // Object is closer on the far left
+    turnLeft();
+  } else if (leftCenterDistance < leftDistance && leftCenterDistance < rightCenterDistance && leftCenterDistance < rightDistance && leftCenterDistance < 100) {
+    // Object is closer on the left-center
+    turnLeft();
+  } else if (rightCenterDistance < leftDistance && rightCenterDistance < leftCenterDistance && rightCenterDistance < rightDistance && rightCenterDistance < 100) {
+    // Object is closer on the right-center
+    turnRight();
+  } else if (rightDistance < leftDistance && rightDistance < leftCenterDistance && rightDistance < rightCenterDistance && rightDistance < 100) {
+    // Object is closer on the far right
+    turnRight();
+  } else {
+    // No object detected within range, stop
+    stopMotors();
+  }
+}
+
+int getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  return duration * 0.034 / 2;
+}
+
+void moveForward() {
+  digitalWrite(motor1Pin1, HIGH);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, HIGH);
+  digitalWrite(motor2Pin2, LOW);
+}
+
+void moveBackward() {
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, HIGH);
+}
+
+void stopMotors() {
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, LOW);
+}
+
+void turnLeft() {
+  stopMotors();  // Stop before turning
+  delay(200);
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  digitalWrite(motor2Pin1, HIGH);
+  digitalWrite(motor2Pin2, LOW);
+  delay(300);  // Adjust delay based on turning speed
+  stopMotors();
+}
+
+void turnRight() {
+  stopMotors();  // Stop before turning
+  delay(200);
+  digitalWrite(motor1Pin1, HIGH);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, HIGH);
+  delay(300);  // Adjust delay based on turning speed
+  stopMotors();
+}
